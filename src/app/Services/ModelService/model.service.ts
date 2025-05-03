@@ -10,7 +10,8 @@ export class ModelService {
   // private apiUrl = 'https://localhost:7145/api/SentenceCorrection/correct'; // Replace with your backend API URL
 
 
-  private apiUrl = 'http://127.0.0.1:8000/correct_sentence';
+  // private apiUrl = 'http://127.0.0.1:8000/correct_sentence';
+  private apiUrl = 'https://03b5-182-190-201-60.ngrok-free.app';
 
 
   constructor(private _httpClient: HttpClient) {}
