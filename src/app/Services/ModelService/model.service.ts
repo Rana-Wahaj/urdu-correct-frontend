@@ -11,7 +11,7 @@ export class ModelService {
 
 
   // private apiUrl = 'http://127.0.0.1:8000/correct_sentence';
-  private apiUrl = 'https://03b5-182-190-201-60.ngrok-free.app/correct_semtence';
+  private apiUrl = 'https://03b5-182-190-201-60.ngrok-free.app/correct_sentence';
 
 
   constructor(private _httpClient: HttpClient) {}
