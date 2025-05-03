@@ -1,0 +1,113 @@
+<div class="main-container">
+  <div class="chat-container">
+    <div class="chat-header">
+      <h2>درستگو</h2>
+      <button class="info-icon" (click)="toggleInfoPopup()" title="About DurustGo">ⓘ</button>
+    </div>
+
+    <div class="info-popup" *ngIf="showInfoPopup" (click)="handlePopupClick($event)">
+      <div class="info-content" (click)="$event.stopPropagation()">
+        <button class="close-button" (click)="toggleInfoPopup()">×</button>
+        <div class="info-header">
+          <h3>دُرستگو کا تعارف</h3>
+          <button class="speaker-icon" (click)="speakInfo()" title="Listen to Introduction">🔊</button>
+        </div>
+        <div class="info-text">
+          <p>دُرستگو ایک ایپلیکیشن ہے جو اُردو گرامر کی غلطیوں کو درست کرنے کے لیے مشین لرننگ اور NLP کا استعمال کرتی ہے، تاکہ تحریر زیادہ درست اور فصیح ہو۔</p>
+          <h4>استعمالات:</h4>
+          <div class="usage-section">
+            <div class="usage-item">
+              <h5>تعلیمی مواد:</h5>
+              <p>طلباء اور اساتذہ تحریری کام کو گرامر کی غلطیوں سے پاک کرنے کے لیے استعمال کر سکتے ہیں۔</p>
+            </div>
+            <div class="usage-item">
+              <h5>زبان سیکھنے والے:</h5>
+              <p>اُردو سیکھنے والے افراد اپنی مہارت کو بہتر بنا سکتے ہیں۔</p>
+            </div>
+            <div class="usage-item">
+              <h5>ویب مواد:</h5>
+              <p>بلاگرز اور ویب مواد تخلیق کرنے والے اپنی تحریر کو درست کر سکتے ہیں۔</p>
+            </div>
+          </div>
+          <p class="conclusion">دُرستگو اُردو کی گرامر کو درست کرنے کے ساتھ ساتھ تحریر کو پیشہ ورانہ اور موثر بناتا ہے۔</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-messages" id="messageContainer">
+      <div *ngFor="let message of messages" class="message-wrapper">
+        <div [ngClass]="{ 'user-message': message.isUser, 'bot-message': !message.isUser }">
+          <div class="message-content">
+            <div class="message-text" *ngIf="message.isUser">
+              <p>{{ message.text }}</p>
+            </div>
+            <div class="message-text" *ngIf="!message.isUser">
+              <ng-container *ngIf="parseBotMessage(message.text) as parsed">
+                <div class="input-paragraph">
+                  <p>{{ parsed.input }}</p>
+                </div>
+                <div class="corrected-sentence">
+                  <p>{{ parsed.corrected }}</p>
+                </div>
+                <div class="errors-section" *ngIf="parsed.errors.length > 0">
+                  <h4>غلطیاں:</h4>
+                  <div class="error-card" *ngFor="let error of parsed.errors; let i = index">
+                    <div class="error-header">
+                      <span class="error-number">{{ i + 1 }}</span>
+                      <span class="error-type">{{ error.error_type }}</span>
+                    </div>
+                    <div class="error-details">
+                      <p><strong>غلط:</strong> {{ error.incorrect }}</p>
+                      <p><strong>صحیح:</strong> {{ error.correct }}</p>
+                      <p><strong>وضاحت:</strong> {{ error.description }}</p>
+                      <p><strong>وجہ:</strong> {{ error.reason }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="closing-message">
+                  <p>{{ parsed.closing }}</p>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+        <div class="message-actions">
+          <button class="speaker-icon" (click)="speakMessage(message)" title="Speak this message">
+            🔊
+          </button>
+        </div>
+      </div>
+      <div *ngIf="isLoading" class="message-wrapper">
+        <div class="bot-message">
+          <div class="message-content">
+            <div class="message-text">
+              <div class="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input">
+      <div class="chat-input-container">
+        <button class="chat-button send-button" 
+                (click)="sendMessage()"
+                title="Send Message">➤</button>
+        <input type="text" 
+               [(ngModel)]="userInput" 
+               class="chat-text-input" 
+               placeholder="... اپنا اردو جملہ یہاں ٹائپ کریں" 
+               (keydown.enter)="sendMessage()"
+               autocomplete="off"/>
+        <button class="chat-button mic-button" 
+                [ngClass]="{ 'listening': isListening }" 
+                (click)="startSpeechToText()"
+                title="Voice Input">🎤</button>
+      </div>
+    </div>
+  </div>
+</div>
