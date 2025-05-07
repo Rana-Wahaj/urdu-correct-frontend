@@ -1,3 +1,4 @@
+
 import { Component, inject, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,6 +10,9 @@ interface Message {
   isInfo?: boolean;
   isTyping?: boolean;
   displayText?: string;
+  model?: string; // Add model used
+  mode?: string;  // Add mode (sentence/paragraph)
+  responseTime?: string; // Add response time
 }
 
 interface ParsedBotMessage {
@@ -35,6 +39,14 @@ export class ChatComponent {
   showInfoPopup: boolean = false;
   private voices: SpeechSynthesisVoice[] = [];
   private recognition: SpeechRecognition | null = null;
+
+  // Mode and model selection
+  mode: 'sentence' | 'paragraph' = 'sentence';
+  selectedModel: 'mt5_large' | 'mBart' = 'mt5_large';
+  availableModels: { value: 'mt5_large' | 'mBart'; label: string }[] = [
+    { value: 'mt5_large', label: 'mT5 Large' },
+    { value: 'mBart', label: 'mBART' }
+  ];
 
   private readonly infoText = `دُرستگو کا تعارف:
 دُرستگو ایک ایپلیکیشن ہے جو اُردو گرامر کی غلطیوں کو درست کرنے کے لیے مشین لرننگ اور NLP کا استعمال کرتی ہے، تاکہ تحریر زیادہ درست اور فصیح ہو۔
@@ -95,6 +107,10 @@ export class ChatComponent {
     this.speakMessage({ text: this.infoText, isUser: false, isInfo: true });
   }
 
+  toggleMode(newMode: 'sentence' | 'paragraph') {
+    this.mode = newMode;
+  }
+
   async sendMessage() {
     if (this.userInput.trim()) {
       // Stop speech recognition if active
@@ -110,35 +126,66 @@ export class ChatComponent {
       
       this.userInput = '';
       this.isLoading = true;
-      
-      try {
-        const response = await this.modelService.correctSentence(this.userInputCopy).toPromise();
-        const normalizedCorrectedSentence = this.normalizeSentence(response.corrected_sentence);
 
-        let botReply = `آپ نے یہ پیراگراف درج کیا: ${this.userInputCopy}\n\n`;
-        if (normalizedUserInput === normalizedCorrectedSentence && (!response.errors || response.errors.length === 0)) {
-          botReply += `بہت خوب! آپ کا جملہ بالکل درست ہے، کوئی اصلاح کی ضرورت نہیں۔ اگر آپ کو مزید مدد کی ضرورت ہو، میں ہمیشہ یہاں ہوں۔ ✨`;
+      try {
+        // Determine the endpoint and model label
+        let endpoint: string;
+        let modelLabel: string;
+        if (this.mode === 'sentence') {
+          endpoint = 'mt5_sentence';
+          modelLabel = 'mT5 Sentence'; // Specific label for sentence mode
         } else {
-          botReply += `میں نے آپ کے دیے گئے پیراگراف میں غلطیاں پائی ہیں اور انہیں درست کیا ہے۔ یہ ہے آپ کا درست شدہ ورژن:\n${response.corrected_sentence}\n\n`;
+          endpoint = this.selectedModel === 'mt5_large' ? 'mt5_paragraph' : 'bart_paragraph';
+          modelLabel = this.selectedModel === 'mt5_large' ? 'mT5 Large' : 'mBART';
+        }
+
+        // Capitalize mode for display
+        const modeLabel = this.mode === 'sentence' ? 'Sentence' : 'Paragraph';
+
+        // Measure response time
+        const startTime = performance.now();
+
+        const response = await this.modelService.correctText(this.userInputCopy, endpoint).toPromise();
+        const normalizedCorrectedText = this.normalizeSentence(response.corrected_text);
+
+        const endTime = performance.now();
+        const responseTime = ((endTime - startTime) / 1000).toFixed(2); // Convert to seconds
+
+        let botReply = `آپ نے یہ ${this.mode === 'sentence' ? 'جملہ' : 'پیراگراف'} درج کیا: ${this.userInputCopy}\n\n`;
+        if (normalizedUserInput === normalizedCorrectedText && (!response.errors || response.errors.length === 0)) {
+          botReply += `بہت خوب! آپ کا ${this.mode === 'sentence' ? 'جملہ' : 'پیراگراف'} بالکل درست ہے، کوئی اصلاح کی ضرورت نہیں۔ اگر آپ کو مزید مدد کی ضرورت ہو، میں ہمیشہ یہاں ہوں۔ ✨`;
+        } else {
+          botReply += `میں نے آپ کے دیے گئے ${this.mode === 'sentence' ? 'جملے' : 'پیراگراف'} میں غلطیاں پائی ہیں اور انہیں درست کیا ہے۔ یہ ہے آپ کا درست شدہ ورژن:\n${response.corrected_text}\n\n`;
           
           if (response.errors && response.errors.length > 0) {
             response.errors.forEach((error: any, index: number) => {
               botReply += `${index + 1}. آپ نے "${error.incorrect}" استعمال کیا جبکہ یہ "${error.correct}" ہونا چاہیے کیونکہ ${error.reason}\n`;
             });
           } else {
-            botReply += `کوئی مخصوص گرامر کی غلطی نہیں ملی، لیکن جملہ بہتر بنایا گیا ہے۔\n`;
+            botReply += `کوئی مخصوص گرامر کی غلطی نہیں ملی، لیکن ${this.mode === 'sentence' ? 'جملہ' : 'پیراگراف'} بہتر بنایا گیا ہے۔\n`;
           }
           
-          botReply += `\nبہت خوب! اگر آپ کو مزید مدد کی ضرورت ہو، تو میں ہاں ہوں! ✨`;
+          botReply += `\nبہت خوب! اگر آپ کو مزید مدد کی ضرورت ہو، تو میں یہاں ہوں! ✨`;
         }
 
-        this.messages.push({ text: botReply, isUser: false, isTyping: true });
+        // Add bot reply with metadata
+        this.messages.push({ 
+          text: botReply, 
+          isUser: false, 
+          isTyping: true,
+          model: modelLabel,
+          mode: modeLabel,
+          responseTime: `${responseTime} seconds`
+        });
         await this.typeMessage(botReply);
       } catch (error) {
-        console.error('Error correcting sentence:', error);
+        console.error('Error correcting text:', error);
         this.messages.push({ 
-          text: 'جملہ درست کرنے میں خرابی ہوئی ہے۔ براہ کرم کچھ وقت بعد دوبارہ کوشش کریں۔', 
-          isUser: false 
+          text: 'متن درست کرنے میں خرابی ہوئی ہے۔ براہ کرم کچھ وقت بعد دوبارہ کوشش کریں۔', 
+          isUser: false,
+          model: this.mode === 'sentence' ? 'mT5 Sentence' : (this.selectedModel === 'mt5_large' ? 'mT5 Large' : 'mBART'),
+          mode: this.mode === 'sentence' ? 'Sentence' : 'Paragraph',
+          responseTime: 'N/A'
         });
       } finally {
         this.isLoading = false;
@@ -181,8 +228,8 @@ export class ChatComponent {
     let currentSection = '';
 
     lines.forEach(line => {
-      if (line.startsWith('آپ نے یہ پیراگراف درج کیا:')) {
-        input = line.replace('آپ نے یہ پیراگراف درج کیا: ', '').trim();
+      if (line.startsWith('آپ نے یہ')) {
+        input = line.replace(/آپ نے یہ (جملہ|پیراگراف) درج کیا: /, '').trim();
         currentSection = 'input';
       } else if (line.includes('درست شدہ ورژن:')) {
         corrected = line.replace(/.*درست شدہ ورژن:\s*/, '').trim();
@@ -296,20 +343,22 @@ export class ChatComponent {
     // For bot messages, reconstruct text using filtered errors
     else if (!message.isUser) {
       const parsed = this.parseBotMessage(message.text);
-      speechText = `آپ نے یہ پیراگراف درج کیا: ${parsed.input}\n\n`;
+      speechText = `آپ نے یہ ${this.mode === 'sentence' ? 'جملہ' : 'پیراگراف'} درج کیا: ${parsed.input}\n\n`;
       if (parsed.errors.length === 0 && parsed.corrected === parsed.input) {
-        speechText += `بہت خوب! آپ کا جملہ بالکل درست ہے، کوئی اصلاح کی ضرورت نہیں۔ اگر آپ کو مزید مدد کی ضرورت ہو، میں ہمیشہ یہاں ہوں۔`;
+        speechText += `بہت خوب! آپ کا ${this.mode === 'sentence' ? 'جملہ' : 'پیراگراف'} بالکل درست ہے، کوئی اصلاح کی ضرورت نہیں۔ اگر آپ کو مزید مدد کی ضرورت ہو، میں ہمیشہ یہاں ہوں۔`;
       } else {
-        speechText += `میں نے آپ کے دیے گئے پیراگراف میں غلطیاں پائی ہیں اور انہیں درست کیا ہے۔ یہ ہے آپ کا درست شدہ ورژن:\n${parsed.corrected}\n\n`;
+        speechText += `میں نے آپ کے دیے گئے ${this.mode === 'sentence' ? 'جملے' : 'پیراگراف'} میں غلطیاں پائی ہیں اور انہیں درست کیا ہے۔ یہ ہے آپ کا درست شدہ ورژن:\n${parsed.corrected}\n\n`;
         if (parsed.errors.length > 0) {
           parsed.errors.forEach((error, index) => {
             speechText += `${index + 1}. آپ نے "${error.incorrect}" استعمال کیا جبکہ یہ "${error.correct}" ہونا چاہیے کیونکہ ${error.reason}\n`;
           });
         } else {
-          speechText += `کوئی مخصوص گرامر کی غلطی نہیں ملی، لیکن جملہ بہتر بنایا گیا ہے。\n`;
+          speechText += `کوئی مخصوص گرامر کی غلطی نہیں ملی، لیکن ${this.mode === 'sentence' ? 'جملہ' : 'پیراگراف'} بہتر بنایا گیا ہے۔\n`;
         }
         speechText += `\n${parsed.closing}`;
       }
+      // Add model, mode, and response time to spoken text
+      speechText += `\n\nیہ جواب ${message.model} ماڈل نے ${message.mode} موڈ میں تیار کیا۔ جواب دینے میں ${message.responseTime} لگے۔`;
     }
 
     const utterance = new SpeechSynthesisUtterance(speechText);
