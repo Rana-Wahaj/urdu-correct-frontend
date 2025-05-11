@@ -7,7 +7,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class ModelService {
-  private baseApiUrl = 'http://127.0.0.1:8000'; // Base URL for your FastAPI backend
+  private baseApiUrl = 'https://03b5-182-190-201-60.ngrok-free.app'; // Base URL for your FastAPI backend
 
   constructor(private _httpClient: HttpClient) {}
 
